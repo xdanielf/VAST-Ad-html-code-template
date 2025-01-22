@@ -1,0 +1,476 @@
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    .videoPlayerContainer {
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-family: Arial, sans-serif;
+    }
+    #videoContainer {
+      position: relative;
+      width: 100%;
+      margin: 0 auto;
+      padding-top: 56.25%;
+      max-width: 1000px;
+    }
+    @media screen and (min-width: 600px) {
+      #videoContainer { max-width: 600px; }
+    }
+    @media screen and (min-width: 800px) {
+      #videoContainer { max-width: 800px; }
+    }
+    @media screen and (min-width: 1000px) {
+      #videoContainer { max-width: 1000px; }
+    }
+    #content, #adContainer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    #contentElement {
+      max-width: 100%;
+      max-height: 100%;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    .video-controls {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 1000;
+      pointer-events: none;
+    }
+    #videoContainer.video-started .video-controls,
+    #videoContainer:hover .video-controls {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .play-pause, .fullscreen-btn, .volume-btn {
+      background: none;
+      border: none;
+      color: white;
+      cursor: pointer;
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .progress-bar {
+      flex-grow: 1;
+      height: 15px;
+      background: rgba(255, 255, 255, 0.3);
+      cursor: pointer;
+      position: relative;
+      border-radius: 7px;
+      overflow: hidden;
+    }
+    .progress {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      background: #ff0000;
+      width: 0%;
+      transition: width 0.1s linear;
+    }
+    .progress-bar:hover .progress {
+      background: #ff3333;
+    }
+    .time {
+      color: white;
+      font-size: 14px;
+      min-width: 100px;
+      text-align: right;
+    }
+    .play-pause::before {
+      content: "▶";
+      font-size: 20px;
+    }
+    .play-pause.playing::before {
+      content: "⏸";
+    }
+    .fullscreen-btn::before {
+      content: "⛶";
+      font-size: 20px;
+    }
+    .volume-btn::before {
+      content: "🔊";
+      font-size: 20px;
+    }
+    .volume-btn.muted::before {
+      content: "🔇";
+    }
+    #adContainer {
+      z-index: 1;
+    }
+    .initial-play-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      z-index: 10;
+    }
+    .initial-play-button {
+      width: 80px;
+      height: 80px;
+      background-color: rgba(255, 255, 255, 0.8);
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: transform 0.2s;
+    }
+    .initial-play-button:hover {
+      transform: scale(1.1);
+      background-color: rgba(255, 255, 255, 1);
+    }
+    .initial-play-button::before {
+      content: '';
+      width: 0;
+      height: 0;
+      border-style: solid;
+      border-width: 20px 0 20px 35px;
+      border-color: transparent transparent transparent #000;
+      margin-left: 8px;
+    }
+    .hide {
+      display: none !important;
+    }
+    #videoContainer:-webkit-full-screen,
+    #videoContainer:-moz-full-screen,
+    #videoContainer:fullscreen {
+      width: 100%;
+      height: 100%;
+    }
+    .ad-playing .video-controls {
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+    .volume-slider-container {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .volume-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 80px;
+      height: 5px;
+      background: rgba(255, 255, 255, 0.5);
+      outline: none;
+      opacity: 0.7;
+      -webkit-transition: .2s;
+      transition: opacity .2s;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    .volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 12px;
+      height: 12px;
+      background: white;
+      cursor: pointer;
+      border-radius: 50%;
+    }
+    .volume-slider::-moz-range-thumb {
+      width: 12px;
+      height: 12px;
+      background: white;
+      cursor: pointer;
+      border-radius: 50%;
+    }
+    .volume-slider:hover, .volume-slider:focus {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="videoPlayerContainer">
+    <div id="videoContainer">
+      <div class="initial-play-overlay">
+        <div class="initial-play-button"></div>
+      </div>
+      <div id="content">
+        <video id="contentElement" playsinline>
+          <source src=""> </source>
+        </video>
+        <div class="video-controls">
+          <button class="play-pause"></button>
+          <div class="progress-bar">
+            <div class="progress"></div>
+          </div>
+          <div class="time">00:00 / 00:00</div>
+          <div class="volume-slider-container">
+            <button class="volume-btn"></button>
+            <input type="range" class="volume-slider" min="0" max="1" step="0.01" value="1">
+          </div>
+          <button class="fullscreen-btn"></button>
+        </div>
+      </div>
+      <div id="adContainer"></div>
+    </div>
+  </div>
+  <script src="//imasdk.googleapis.com/js/sdkloader/ima3.js"></script>
+  <script>
+    const AD_TAG_URL = '';
+    const VIDEO_SOURCE = '';
+    let adsManager, adsLoader, adDisplayContainer, videoContent;
+    let isInitialPlayback = true;
+    let currentAd = null;
+    let isPlaybackReady = false;
+    let isFullscreen = false;
+    let controlsTimeout;
+    let videoContainer;
+    let playPauseBtn, progress, progressBar, timeDisplay, fullscreenBtn, volumeBtn, volumeSlider;
+    function init() {
+      videoContent = document.getElementById('contentElement');
+      videoContent.src = VIDEO_SOURCE;
+      videoContainer = document.getElementById('videoContainer');
+      const initialPlayOverlay = document.querySelector('.initial-play-overlay');
+      playPauseBtn = document.querySelector('.play-pause');
+      progressBar = document.querySelector('.progress-bar');
+      progress = document.querySelector('.progress');
+      timeDisplay = document.querySelector('.time');
+      fullscreenBtn = document.querySelector('.fullscreen-btn');
+      volumeBtn = document.querySelector('.volume-btn');
+      volumeSlider = document.querySelector('.volume-slider');
+      videoContent.pause();
+      initialPlayOverlay.addEventListener('click', handleInitialPlay);
+      setUpIMA();
+      setupVideoControls();
+    }
+    function handleInitialPlay() {
+      startInitialPlayback();
+      document.querySelector('.initial-play-overlay').classList.add('hide');
+      videoContainer.classList.add('video-started');
+    }
+    function startInitialPlayback() {
+      if (isInitialPlayback) {
+        adDisplayContainer.initialize();
+        try {
+          const containerWidth = videoContainer.offsetWidth;
+          const containerHeight = videoContainer.offsetHeight;
+          adsManager.init(containerWidth, containerHeight, google.ima.ViewMode.NORMAL);
+          adsManager.start();
+          isInitialPlayback = false;
+        } catch (adError) {
+          console.error("Ad Error:", adError.getMessage());
+          onAdError(adError);
+        }
+      }
+    }
+    function setupVideoControls() {
+      playPauseBtn.addEventListener('click', togglePlay);
+      videoContent.addEventListener('click', togglePlay);
+      fullscreenBtn.addEventListener('click', toggleFullscreen);
+      volumeBtn.addEventListener('click', toggleMute);
+      volumeSlider.addEventListener('input', setVolume);
+      document.addEventListener('fullscreenchange', () => {
+        isFullscreen = document.fullscreenElement !== null;
+      });
+      progressBar.addEventListener('click', handleProgressBarClick);
+      videoContent.addEventListener('timeupdate', updateProgressBar);
+      videoContent.addEventListener('loadedmetadata', updateTimeDisplay);
+      videoContainer.addEventListener('mousemove', showControls);
+      videoContainer.addEventListener('mouseleave', hideControls);
+      document.querySelector('.video-controls').addEventListener('mouseleave', hideControls);
+      if (!videoContent.paused) {
+        hideControls();
+      }
+      updateVolumeIcon();
+    }
+    function handleProgressBarClick(e) {
+      if (!isPlaybackReady || currentAd) return;
+      e.stopPropagation();
+      const rect = progressBar.getBoundingClientRect();
+      const pos = (e.clientX - rect.left) / rect.width;
+      videoContent.currentTime = pos * videoContent.duration;
+    }
+    function updateProgressBar() {
+      if (isPlaybackReady && !currentAd) {
+        const percent = (videoContent.currentTime / videoContent.duration) * 100;
+        progress.style.width = `${percent}%`;
+        timeDisplay.textContent = `${formatTime(videoContent.currentTime)} / ${formatTime(videoContent.duration)}`;
+      }
+    }
+    function updateTimeDisplay() {
+      timeDisplay.textContent = `00:00 / ${formatTime(videoContent.duration)}`;
+    }
+    function showControls() {
+      const controls = document.querySelector('.video-controls');
+      controls.style.opacity = 1;
+      clearTimeout(controlsTimeout);
+      controlsTimeout = setTimeout(hideControls, 2000);
+    }
+    function hideControls() {
+      if (!videoContent.paused) {
+        document.querySelector('.video-controls').style.opacity = 0;
+      }
+    }
+    function toggleFullscreen() {
+      if (!isPlaybackReady || currentAd) return;
+      if (!isFullscreen) {
+        if (videoContainer.requestFullscreen) videoContainer.requestFullscreen();
+        else if (videoContainer.mozRequestFullScreen) videoContainer.mozRequestFullScreen();
+        else if (videoContainer.webkitRequestFullscreen) videoContainer.webkitRequestFullscreen();
+        else if (videoContainer.msRequestFullscreen) videoContainer.msRequestFullscreen();
+      } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+        else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        else if (document.msExitFullscreen) document.msExitFullscreen();
+      }
+    }
+    function togglePlay() {
+      if (!isPlaybackReady || currentAd) return;
+      if (videoContent.paused) {
+        videoContent.play();
+        playPauseBtn.classList.add('playing');
+      } else {
+        videoContent.pause();
+        playPauseBtn.classList.remove('playing');
+      }
+    }
+    function formatTime(seconds) {
+      const minutes = Math.floor(seconds / 60);
+      seconds = Math.floor(seconds % 60);
+      return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+    function setUpIMA() {
+      adDisplayContainer = new google.ima.AdDisplayContainer(
+        document.getElementById('adContainer'),
+        videoContent);
+      adsLoader = new google.ima.AdsLoader(adDisplayContainer);
+      adsLoader.addEventListener(google.ima.AdsManagerLoadedEvent.Type.ADS_MANAGER_LOADED, onAdsManagerLoaded, false);
+      adsLoader.addEventListener(google.ima.AdErrorEvent.Type.AD_ERROR, onAdError, false);
+      const adsRequest = new google.ima.AdsRequest();
+      adsRequest.adTagUrl = AD_TAG_URL;
+      const containerWidth = videoContainer.offsetWidth;
+      const containerHeight = videoContainer.offsetHeight;
+      adsRequest.linearAdSlotWidth = containerWidth;
+      adsRequest.linearAdSlotHeight = containerHeight;
+      adsRequest.nonLinearAdSlotWidth = containerWidth;
+      adsRequest.nonLinearAdSlotHeight = containerHeight;
+      adsLoader.requestAds(adsRequest);
+    }
+    function onAdsManagerLoaded(adsManagerLoadedEvent) {
+      const adsRenderingSettings = new google.ima.AdsRenderingSettings();
+      adsRenderingSettings.restoreCustomPlaybackStateOnAdBreakComplete = true;
+      adsManager = adsManagerLoadedEvent.getAdsManager(videoContent, adsRenderingSettings);
+      adsManager.addEventListener(google.ima.AdErrorEvent.Type.AD_ERROR, onAdError);
+      adsManager.addEventListener(google.ima.AdEvent.Type.CONTENT_PAUSE_REQUESTED, onContentPauseRequested);
+      adsManager.addEventListener(google.ima.AdEvent.Type.CONTENT_RESUME_REQUESTED, onContentResumeRequested);
+      adsManager.addEventListener(google.ima.AdEvent.Type.ALL_ADS_COMPLETED, onAdEvent);
+      adsManager.addEventListener(google.ima.AdEvent.Type.LOADED, onAdEvent);
+      adsManager.addEventListener(google.ima.AdEvent.Type.STARTED, onAdEvent);
+      adsManager.addEventListener(google.ima.AdEvent.Type.COMPLETE, onAdEvent);
+      adsManager.setVolume(videoContent.volume);
+    }
+    function onAdEvent(adEvent) {
+      currentAd = adEvent.getAd();
+      switch (adEvent.type) {
+        case google.ima.AdEvent.Type.LOADED:
+          if (!currentAd.isLinear()) videoContent.play();
+          break;
+        case google.ima.AdEvent.Type.STARTED:
+          if (currentAd.isLinear()) {
+            playPauseBtn.classList.add('playing');
+            videoContainer.classList.add('ad-playing');
+          }
+          break;
+        case google.ima.AdEvent.Type.COMPLETE:
+        case google.ima.AdEvent.Type.ALL_ADS_COMPLETED:
+          playPauseBtn.classList.remove('playing');
+          videoContainer.classList.remove('ad-playing');
+          if (adEvent.type === google.ima.AdEvent.Type.ALL_ADS_COMPLETED) {
+            if (adsManager) {
+              adsManager.destroy();
+              adsManager = null;
+            }
+            currentAd = null;
+            isPlaybackReady = true;
+            videoContent.play();
+            playPauseBtn.classList.add('playing');
+          }
+          break;
+      }
+    }
+    function onAdError(adErrorEvent) {
+      console.error("IMA Ad Error:", adErrorEvent.getError());
+      if (adsManager) {
+        adsManager.destroy();
+        adsManager = null;
+      }
+      currentAd = null;
+      isPlaybackReady = true;
+      videoContent.play();
+      playPauseBtn.classList.add('playing');
+      document.querySelector('.initial-play-overlay').classList.add('hide');
+      videoContainer.classList.add('video-started');
+      videoContainer.classList.remove('ad-playing');
+    }
+    function onContentPauseRequested() {
+      videoContent.pause();
+      playPauseBtn.classList.remove('playing');
+    }
+    function onContentResumeRequested() {
+      videoContent.play();
+      playPauseBtn.classList.add('playing');
+    }
+    function setVolume() {
+      videoContent.volume = volumeSlider.value;
+      if (adsManager) {
+        adsManager.setVolume(videoContent.volume);
+      }
+      updateVolumeIcon();
+    }
+    function toggleMute() {
+      videoContent.muted = !videoContent.muted;
+      if (adsManager) {
+        adsManager.setVolume(videoContent.muted ? 0 : videoContent.volume);
+      }
+      updateVolumeIcon();
+    }
+    function updateVolumeIcon() {
+      volumeBtn.classList.toggle('muted', videoContent.muted);
+      if (videoContent.muted) {
+        volumeSlider.value = 0;
+      } else {
+        volumeSlider.value = videoContent.volume;
+      }
+    }
+    window.addEventListener('resize', () => {
+      if (adsManager) {
+        const containerWidth = videoContainer.offsetWidth;
+        const containerHeight = videoContainer.offsetHeight;
+        adsManager.resize(containerWidth, containerHeight, google.ima.ViewMode.NORMAL);
+      }
+    });
+    init();
+  </script>
+</body>
